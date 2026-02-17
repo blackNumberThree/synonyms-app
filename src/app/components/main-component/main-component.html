@@ -1,1 +1,43 @@
-<p>main-component works!</p>
+<div class="stats">
+    <span>Символів: {{ charCount }}</span>
+    <span>Слів: {{ wordCount }}</span>
+</div>
+<div class="layout">
+    <div class="layout__left">
+        <button
+            type="button"
+            (click)="onGetSynonymsClick()"
+            [disabled]="!selectedText || isLoadingSynonyms"
+        >
+            @if (isLoadingSynonyms) {
+                Завантаження...
+            } @else {
+                Отримати синоніми
+            }
+        </button>
+
+        <textarea
+            [formControl]="textControl"
+            (select)="onSelectionChange($event)"
+            rows="8"
+            cols="70"
+            maxlength="100000"
+            placeholder="Введіть текст..."
+        ></textarea>
+    </div>
+    <div class="layout__right">
+        @if (synonymsError) {
+            <div class="synonyms-message">
+                {{ synonymsError }}
+            </div>
+        } @else if (synonyms.length) {
+            <div class="synonyms-list">
+                @for (s of synonyms; track s.word) {
+                    <button type="button" class="synonym-item">
+                        {{ s.word }}
+                    </button>
+                }
+            </div>
+        }
+    </div>
+</div>
