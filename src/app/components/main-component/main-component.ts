@@ -32,7 +32,12 @@ export class MainComponent implements OnInit {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((value) => this.updateStats(value));
     }
-
+    copyText(val: string) {
+        if (val) {
+            navigator.clipboard.writeText(val);
+            alert('Скопійовано!');
+        }
+    }
     onSelectionChange(event: Event): void {
         const target = event.target as HTMLTextAreaElement | null;
         if (!target) {

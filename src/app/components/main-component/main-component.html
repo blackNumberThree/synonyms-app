@@ -5,7 +5,11 @@
     </div>
     <div class="layout">
         <div class="layout__left">
+            <button (click)="copyText(myTextarea.value)">
+                копіювати текст з форми
+            </button>
             <textarea
+                #myTextarea
                 [formControl]="textControl"
                 (select)="onSelectionChange($event)"
                 rows="8"
