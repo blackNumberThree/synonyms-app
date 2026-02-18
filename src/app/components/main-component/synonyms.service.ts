@@ -3,9 +3,6 @@ export interface SynonymResult {
     score: number;
 }
 
-/**
- * Нормалізує виділений текст: обрізає пробіли та видаляє пунктуацію на краях
- */
 export function normalizeSelectedText(value: string): string {
     const processedText = value
         .trim()
@@ -16,10 +13,6 @@ export function normalizeSelectedText(value: string): string {
     return processedText;
 }
 
-/**
- * Завантажує синоніми з Datamuse API
- * Повертає Promise з масивом синонімів або null у разі помилки/пустого результату
- */
 export async function loadSynonyms(
     term: string,
 ): Promise<SynonymResult[] | null> {
@@ -34,7 +27,6 @@ export async function loadSynonyms(
         return null;
     }
 
-    // Сортуємо за score (з більшого до меншого) та обмежуємо до 20 результатів
     return data
         .slice(0, 50)
         .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
