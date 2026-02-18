@@ -1,8 +1,11 @@
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { loadSynonyms, normalizeSelectedText } from './synonyms.service';
-
+import {
+    loadSynonyms as fetchSynonyms,
+    normalizeSelectedText,
+} from './synonyms.service';
+import { signal, computed } from '@angular/core';
 @Component({
     selector: 'app-main-component',
     standalone: true,
@@ -11,18 +14,17 @@ import { loadSynonyms, normalizeSelectedText } from './synonyms.service';
     styleUrl: './main-component.scss',
 })
 export class MainComponent implements OnInit {
-    readonly textControl = new FormControl<string>('', { nonNullable: true });
+    textControl = new FormControl<string>('', { nonNullable: true });
+    destroyRef = inject(DestroyRef);
+    isLoadingSynonyms = signal(false);
+    synonyms = signal<Array<{ word: string; score: number }>>([]);
+    synonymsError = signal<string | null>(null);
 
     charCount = 0;
     wordCount = 0;
     selectedText: string | null = null;
-    normalizedSelectedText: string | null = null;
-
-    synonyms: Array<{ word: string; score: number }> = [];
-    isLoadingSynonyms = false;
-    synonymsError: string | null = null;
-
-    private readonly destroyRef = inject(DestroyRef);
+    selectionStart: number | null = null;
+    selectionEnd: number | null = null;
 
     ngOnInit(): void {
         this.updateStats(this.textControl.value);
@@ -35,6 +37,8 @@ export class MainComponent implements OnInit {
         const target = event.target as HTMLTextAreaElement | null;
         if (!target) {
             this.selectedText = null;
+            this.selectionStart = null;
+            this.selectionEnd = null;
             return;
         }
 
@@ -45,24 +49,21 @@ export class MainComponent implements OnInit {
             selectionStart === selectionEnd
         ) {
             this.selectedText = null;
+            this.selectionStart = null;
+            this.selectionEnd = null;
             return;
         }
 
         this.selectedText = value.substring(selectionStart, selectionEnd);
+        this.selectionStart = selectionStart;
+        this.selectionEnd = selectionEnd;
     }
 
     onGetSynonymsClick(): void {
         if (!this.selectedText) {
             return;
         }
-
-        const normalized = normalizeSelectedText(this.selectedText);
-        if (!normalized) {
-            return;
-        }
-
-        this.normalizedSelectedText = normalized;
-        this.loadSynonyms(normalized);
+        this.loadSynonyms(normalizeSelectedText(this.selectedText));
     }
 
     updateStats(value: string): void {
@@ -74,30 +75,46 @@ export class MainComponent implements OnInit {
         return value.trim().split(/\s+/).filter(Boolean).length;
     }
 
-    private async loadSynonyms(term: string): Promise<void> {
-        console.log('loadSynonyms', term);
+    onSynonymClick(synonym: string): void {
+        if (this.selectionStart == null || this.selectionEnd == null) {
+            return;
+        }
 
-        this.isLoadingSynonyms = true;
-        this.synonymsError = null;
-        this.synonyms = [];
+        const currentValue = this.textControl.value;
+        const textBefore = currentValue.substring(0, this.selectionStart);
+        const textAfter = currentValue.substring(this.selectionEnd);
+
+        const newText = textBefore + synonym + ' ' + textAfter;
+        this.textControl.setValue(newText);
+        this.synonyms.set([]);
+        this.synonymsError.set(null);
+        this.selectedText = null;
+        this.selectionStart = null;
+        this.selectionEnd = null;
+    }
+
+    private async loadSynonyms(term: string): Promise<void> {
+        this.isLoadingSynonyms.set(true);
+        this.synonymsError.set(null);
+        this.synonyms.set([]);
 
         try {
-            const result = await loadSynonyms(term);
-
+            const result = await fetchSynonyms(term);
             if (result === null) {
-                this.synonymsError = 'Для цього слова не знайдено синонімів';
+                this.synonymsError.set('Для цього слова не знайдено синонімів');
                 return;
             }
 
-            this.synonyms = result;
+            this.synonyms.set(result);
         } catch (error) {
-            this.synonymsError =
+            this.synonymsError.set(
                 error instanceof Error
                     ? error.message
-                    : 'Помилка підключення до сервера. Спробуйте пізніше.';
+                    : 'Помилка підключення до сервера. Спробуйте пізніше.',
+            );
         } finally {
-            this.isLoadingSynonyms = false;
+            this.selectedText = null;
+            this.isLoadingSynonyms.set(false);
         }
-        console.log(this.synonyms);
     }
 }

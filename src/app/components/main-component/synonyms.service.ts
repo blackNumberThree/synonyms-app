@@ -7,9 +7,13 @@ export interface SynonymResult {
  * Нормалізує виділений текст: обрізає пробіли та видаляє пунктуацію на краях
  */
 export function normalizeSelectedText(value: string): string {
-    const trimmed = value.trim();
-    // Видаляємо пунктуацію на краях: . , ! ? ; : " ' ( )
-    return trimmed.replace(/^[.,!?;:"'()]+|[.,!?;:"'()]+$/g, '');
+    const processedText = value
+        .trim()
+        .replace(/^[.,!?;:"'()]+|[.,!?;:"'()]+$/g, '')
+        .split(' ')
+        .join('+');
+
+    return processedText;
 }
 
 /**
@@ -19,27 +23,20 @@ export function normalizeSelectedText(value: string): string {
 export async function loadSynonyms(
     term: string,
 ): Promise<SynonymResult[] | null> {
-    try {
-        const response = await fetch(
-            `https://api.datamuse.com/words?rel_syn=${encodeURIComponent(term)}`,
-        );
+    const response = await fetch(
+        `https://api.datamuse.com/words?ml=${term}&max=10`,
+    );
+    console.log(`https://api.datamuse.com/words?ml=${term}&max=10`);
 
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
+    const data: SynonymResult[] = await response.json();
 
-        const data: SynonymResult[] = await response.json();
-
-        if (!data.length) {
-            return null;
-        }
-
-        // Сортуємо за score (з більшого до меншого) та обмежуємо до 20 результатів
-        return data
-            .slice(0, 50)
-            .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-            .slice(0, 20);
-    } catch {
-        throw new Error('Помилка підключення до сервера. Спробуйте пізніше.');
+    if (!data.length) {
+        return null;
     }
+
+    // Сортуємо за score (з більшого до меншого) та обмежуємо до 20 результатів
+    return data
+        .slice(0, 50)
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        .slice(0, 20);
 }
